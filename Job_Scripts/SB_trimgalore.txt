@@ -15,12 +15,14 @@
 ####################
 
 # State directory
-cd /home/erindls/hotpurps_RNAseq/raw_fastq_files/raw_data
+cd /home/snbogan/usftp21.novogene.com/raw_data
 
-# Replace with the appropriate input file names and output directory
+conda activate trimgalore_env
+
+# Run looped trim-galore
 for file in *_R1_001.fq.gz; do
     base=$(basename $file "_R1.fq.gz")
-    trim_galore --paired --output_dir /home/erindls/hotpurps_RNAseq/fq_trimgalore --retain_unpaired \
-    ${base}_R1_001.fq.gz ${base}_R2_001.fq.gz
+    trim_galore --paired --output_dir /home/snbogan/usftp21.novogene.com/trim_galore_output \
+    --retain_unpaired ${base}_R1_001.fq.gz ${base}_R2_001.fq.gz
 done
 
