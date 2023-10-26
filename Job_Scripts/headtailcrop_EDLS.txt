@@ -1,0 +1,28 @@
+#!/bin/bash
+#SBATCH --job-name=trimgalore_crop_job
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
+#SBATCH --cpus-per-task=4
+#SBATCH --mem=16G
+#SBATCH --time=12:00:00
+#SBATCH --output=crop_job_%A_%a.out
+#SBATCH --error=crop_job_%A_%a.err
+#SBATCH --mail-type=START,END,FAIL
+#SBATCH --mail-user=erindeleonsanchez@ucsb.edu
+
+####################
+#### TrimGalore ####
+####################
+
+#State directory - directory where raw fqs are  
+cd /home/erindls/hotpurps_RNAseq/raw_fastq_files
+
+#activate trimgalore_env
+conda activate trimgalore_env
+
+#Run looped trim-galore for adapters, quality, headcrop and tailcrop
+for file in *_1.fq; do
+    base=$(basename $file "_1.fq")
+    trim_galore --paired --clip_R1 15 --clip_R2 15 --three_prime_clip_R1 10 --three_prime_clip_R2 10 --output_dir /home/erindls/hotpurps_RNAseq/fq_trimgalore/trim2_fqs \
+    --retain_unpaired ${base}_1.fq ${base}_2.fq
+done
