@@ -1,0 +1,29 @@
+#!/bin/bash
+#SBATCH --job-name=fastqc_RNAseq_trimmed
+#SBATCH --ntasks=1 #Number of tasks (processes) to be launched
+#SBATCH --cpus-per-task=4 #Number of CPUs per task
+#SBATCH --mem=16G # Memory allocation
+#SBATCH -t 12:00:00
+#SBATCH --mail-type=START,END,FAIL
+#SBATCH --mail-user=snbogan@ucsb.edu
+    
+# Make sure fasted is installed
+    
+# Set wd
+cd /home/snbogan/usftp21.novogene.com/trim_galore_output
+
+mkdir fastqc_trimmed 
+
+##Run fastqc in parallel with two files at a time
+# Define the function that will run FastQC on a single file
+run_fastqc() {
+  fastqc "$1" -o fastqc_trimmed/
+}
+
+#Export the function so it can be used by GNU parallel
+export -f run_fastqc
+
+#Use GNU parallel to run FastQC on all files (2 at a time)
+ls *.fq.gz | parallel -j 2 -N1 --delay 5 --joblog fastqc_parallel.log run_fastqc {}
+
+
