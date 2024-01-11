@@ -1,0 +1,52 @@
+#!/bin/bash
+#SBATCH --job-name=hisat2_align_repeat
+#SBATCH --ntasks=1 #Number of tasks (processes) to be launched
+#SBATCH --cpus-per-task=4 #Number of CPUs per task
+#SBATCH --mem=16G # Memory allocation
+#SBATCH -t 72:00:00
+#SBATCH --mail-type=START,END,FAIL
+#SBATCH --mail-user=erindeleonsanchez@ucsb.edu
+
+# Set path to reference genome
+HISAT2_INDEX="/home/erindls/hotpurps_RNAseq/genome/hisat2_index/hisat2_index"
+
+# Set path to output directory
+OUTPUT_DIR="/home/erindls/hotpurps_RNAseq/hisat2_alignments"
+
+# Array of sample names
+SAMPLES=("CC1" "CC3" "CW1" "CW2" "CW3" "WC1" "WC2_1" "WC2_2" "WC3" "WW1" "WW2" "WW3")
+
+# Loop through each samples
+for sample in "${SAMPLES[@]}"; do
+	# Set path to input fq files
+	READ1="/home/erindls/hotpurps_RNAseq/fq_trimgalore/trim2_fqs/to_align/${sample}_1_val_1.fq"
+	READ2="/home/erindls/hotpurps_RNAseq/fq_trimgalore/trim2_fqs/to_align/${sample}_2_val_2.fq"
+
+        # Set path to summary file
+        SUMMARY_FILE="${OUTPUT_DIR}/${sample}_alignment_summary.txt"
+
+	# Set path to output SAM file
+	OUTPUT_SAM="${OUTPUT_DIR}/${sample}.sam"
+	
+	# Set path to log file
+	LOG_FILE="${OUTPUT_DIR}/${sample}_alignment.log"
+
+	# Run it 
+	hisat2 -x $HISAT2_INDEX \
+	-1 $READ1 -2 $READ2 \
+	--summary-file $SUMMARY_FILE \
+	--threads $SLURM_CPUS_PER_TASK \
+	-S $OUTPUT_SAM \
+	2> $LOG_FILE
+
+	# Convert SAM to Bam and sort
+	samtools view -bS $OUTPUT_SAM | samtools sort -o "${OUTPUT_DIR}/${sample}_sorted.bam"
+
+	# Index the sorted BAM file
+    	samtools index "${OUTPUT_DIR}/${sample}_sorted.bam"
+
+   	# Remove the intermediate SAM file if not needed
+    	rm "$OUTPUT_DIR/${sample}.sam" "$OUTPUT_DIR/${sample}.bam"
+done
+
+echo "Alignment completed."
