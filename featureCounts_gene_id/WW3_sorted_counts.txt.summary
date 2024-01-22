@@ -1,0 +1,15 @@
+Status	/home/erindls/hotpurps_RNAseq/hisat2_alignments/to_count/WW3_sorted.bam
+Assigned	26591179
+Unassigned_Unmapped	11134939
+Unassigned_Read_Type	0
+Unassigned_Singleton	0
+Unassigned_MappingQuality	0
+Unassigned_Chimera	0
+Unassigned_FragmentLength	0
+Unassigned_Duplicate	0
+Unassigned_MultiMapping	9482695
+Unassigned_Secondary	0
+Unassigned_NonSplit	0
+Unassigned_NoFeatures	7070634
+Unassigned_Overlapping_Length	0
+Unassigned_Ambiguity	197751
