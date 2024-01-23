@@ -1,0 +1,32 @@
+#!/bin/bash
+#SBATCH --job-name=featureCounts
+#SBATCH --ntasks=1 #Number of tasks (processes) to be launched
+#SBATCH --cpus-per-task=1 #Number of CPUs per task
+#SBATCH --mem=16G # Memory allocation
+#SBATCH -t 12:00:00
+#SBATCH --mail-type=START,END,FAIL
+#SBATCH --mail-user=erindeleonsanchez@ucsb.edu
+
+# Set the path to your input .bam files
+BAM_DIR="/home/erindls/hotpurps_RNAseq/hisat2_alignments/to_count"
+
+# Set the path to your output directory
+OUTPUT_DIR="/home/erindls/hotpurps_RNAseq/featureCounts_gene_id"
+
+# Set the path to the annotation file in GTF format
+ANNOTATION="/home/erindls/hotpurps_RNAseq/genome/ncbi_spur5.gtf"
+
+# Run featureCounts for each .bam file
+for bam_file in ${BAM_DIR}/*.bam; do
+    # Extract the filename without extension
+    filename=$(basename "$bam_file")
+    sample_name="${filename%.*}"
+
+# Run featureCounts
+    featureCounts \
+	-p \
+        -a $ANNOTATION \
+        -o ${OUTPUT_DIR}/${sample_name}_counts.txt \
+	-g gene_id \
+        $bam_file
+done
