@@ -1,0 +1,15 @@
+Status	/home/erindls/hotpurps_RNAseq/hisat2_alignments/to_count/CC1_sorted.bam
+Assigned	13888893
+Unassigned_Unmapped	3416657
+Unassigned_Read_Type	0
+Unassigned_Singleton	0
+Unassigned_MappingQuality	0
+Unassigned_Chimera	0
+Unassigned_FragmentLength	0
+Unassigned_Duplicate	0
+Unassigned_MultiMapping	5375425
+Unassigned_Secondary	0
+Unassigned_NonSplit	0
+Unassigned_NoFeatures	4320175
+Unassigned_Overlapping_Length	0
+Unassigned_Ambiguity	241218
