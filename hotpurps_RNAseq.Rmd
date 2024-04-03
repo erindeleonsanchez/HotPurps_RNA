@@ -18,9 +18,9 @@ library(arrayQualityMetrics)
 library(ape) # for pcoa
 library(vegan) #vegdist
 library(statmod)
-# library(reshape2)
-# library(Rmisc)
-# library(mediation)
+library(reshape2)
+library(Rmisc)
+library(mediation)
 # library(ggforce)
 # library(ggpubr)
 # library(lme4)
@@ -39,9 +39,11 @@ library(Matrix)
 # Combining featureCounts .txt files
 ```{r}
 # 
-myfiles=list.files(path = "featureCounts_gene_id_pairs/txt_files", pattern = "*.txt" )  #read in list of featureCounts .txt files
-x <- readDGE(myfiles, path = "featureCounts_gene_id_pairs/txt_files", skip=1, columns=c(1,7)) # need skip=1
-counts=as.data.frame(x$counts) 
+myfiles=list.files(path = "featureCounts_gene_id_pairs/txt_files", pattern = "*.txt")  #read in list of featureCounts .txt files
+
+x <- readDGE(myfiles, path = "featureCounts_gene_id_pairs/txt_files/", skip=1, columns=c(1,7)) # need skip=1
+
+counts=as.data.frame(x$counts)
 
 # Shortening column names
 
@@ -57,12 +59,11 @@ write.csv(counts, "combined_featureCounts_HP.csv")
 
 # Plot distribution of unfiltered read counts across all samples 
 ggplot(data = data.frame(rowMeans(counts)),
-       aes(x = rowMeans.counts.)) +
+       aes(x = log(rowMeans.counts.))) +
   geom_histogram(fill = "grey") +
-  xlim(0, 500) +
   theme_classic() +
   labs(title = "Distribution of unfiltered reads") +
-  labs(y = "Density", x = "Raw read counts",
+  labs(y = "Density", x = "log raw read counts",
   title = "Read count distribution: untransformed, unnormalized, unfiltered")
 
 ```
@@ -85,7 +86,7 @@ targets_gc <- data.frame(Mat = Mat,
                          Dev = Dev, 
                          Rep = Rep)
 
-targets_gc$grouping <- paste0( targets_gc$Mat, 
+targets_gc$grouping <- paste0(targets_gc$Mat, 
                              targets_gc$Dev,
                              sep="") # the grouping column groups by bucket i.e., CC,CW, WC, WW
 
@@ -149,7 +150,9 @@ MDS <- plotMDS(DGEList_log)
 # Print MDS plot
 MDS
 ```
+
 # PCA Plot
+
 ```{r}
 #PCA
 
@@ -237,7 +240,8 @@ save(DGEList_keep,
 
 ```{r}
 # Create model design that includes maternal and developmental effects and set intercept to 0
-design_multi_gc <- model.matrix(~0 + Mat + Dev) 
+design_multi_gc <- model.matrix(~0 + Mat + Dev + Mat:Dev) 
+colnames(design_multi_gc)[4] <- "MatW_DevW"
 
 # Filter and normalize count matrix input
 gene_counts_matrix <- as.matrix(data_input_gc)
@@ -390,156 +394,452 @@ Fig1
 ```
 
 ```{r}
-#Can compare/visualize gene counts between treatments in histogram
-# literally come back to this but I want to do this
-design_multi_gc <- model.matrix(~0 + Mat + Dev) 
-
-# Filter and normalize count matrix input
-gene_counts_matrix <- as.matrix(data_input_gc)
-
-DGEList <- DGEList(counts = gene_counts_matrix, 
-                   group = targets_gc$grouping, # need to make sure im grouping correctly, doing it by buckets rn
-                   remove.zeros = T)
-
-DGEList <- DGEList[DGEList_keep, 
-                   keep.lib.sizes = FALSE]
-
-DGEList <- calcNormFactors(DGEList)
-
-v1 <- voomWithQualityWeights(DGEList, design=design_multi_gc, lib.size=DGEList$group$lib.size, plot = TRUE)
-
-fit <- lmFit(v1,design_multi_gc) 
-fit <- eBayes(fit) 
-
-All_data_output <- topTable(fit,coef=ncol (design_multi_gc), adjust.method="BH", number=2000, p.value=0.05) 
-write.table(All_data_output, "All_data_output.txt")
-
-# Define a contrast matrix to make all pairwise comparisons of interest
-cont_matrix_all <- makeContrasts(con_all = MatC - MatW, DevW,
-                            levels = design_multi_gc)
-cont_matrix_all
-
-# Extract the linear model fit for the contrasts
-fit2 <- contrasts.fit(fit, cont_matrix_all)
-fit2 <- eBayes(fit2)
-plotSA(fit2)
-
-# Assess differential expression
-colnames(fit2)
-Allcomp <- topTable(fit2,adjust="BH", number=Inf)
-
-
+# #Can compare/visualize gene counts between treatments in histogram
+# # literally come back to this but I want to do this
+# design_multi_gc2 <- model.matrix(~0 + Mat + Dev) 
+# 
+# # Filter and normalize count matrix input
+# gene_counts_matrix <- as.matrix(design_multi_gc2)
+# 
+# DGEList <- DGEList(counts = gene_counts_matrix, 
+#                    group = targets_gc$grouping, # need to make sure im grouping correctly, doing it by buckets rn
+#                    remove.zeros = T)
+# 
+# DGEList <- DGEList[DGEList_keep, 
+#                    keep.lib.sizes = FALSE]
+# 
+# DGEList <- calcNormFactors(DGEList)
+# 
+# v1 <- voomWithQualityWeights(DGEList, design=design_multi_gc, lib.size=DGEList$group$lib.size, plot = TRUE)
+# 
+# fit <- lmFit(v1,design_multi_gc) 
+# fit <- eBayes(fit) 
+# 
+# All_data_output <- topTable(fit,coef=ncol (design_multi_gc), adjust.method="BH", number=2000, p.value=0.05) 
+# write.table(All_data_output, "All_data_output.txt")
+# 
+# # Define a contrast matrix to make all pairwise comparisons of interest
+# cont_matrix_all <- makeContrasts(con_all = MatC - MatW, DevW,
+#                             levels = design_multi_gc)
+# cont_matrix_all
+# 
+# # Extract the linear model fit for the contrasts
+# fit2 <- contrasts.fit(fit, cont_matrix_all)
+# fit2 <- eBayes(fit2)
+# plotSA(fit2)
+# 
+# # Assess differential expression
+# colnames(fit2)
+# Allcomp <- topTable(fit2,adjust="BH", number=Inf)
 
 ```
 
 
 ```{r}
-# Interactive effects 
+## Interactive effects 
 
-#Using EdgeR
-#;  Fit multifactorial design matrix that includes the interaction of maternal temp and developmental temp on larval expression
-design_multi_inter <- model.matrix(~0 + Mat:Dev) 
+# Pairwise comparison of developmental differential expression
+# need to check devW vs devC
+con_int <- makeContrasts(int_cons = MatW_DevW, 
+                         levels = design_multi_gc)
 
-multi_fit <- glmQLFit(DGEList, design_multi_inter)
+# Apply quasi-likelihood F test to incorporate Bayesian tagwise dispersion estimates as parameter for DEG analysis
+int_QLFT <- glmQLFTest(fit_gc,
+                       contrast = con_int)
 
-# Test for interaction between maternal temperature and larval temperature
-inter <- glmQLFTest(multi_fit, coef = 2, poisson.bound = FALSE) # Estimate significant DEGs
-x <- decideTestsDGE(inter, adjust.method = "fdr", p.value = 0.05) #make contrasts
-summary(x)
-#        MatC:DevW #wtf bro
-# Down       17224
-# NotSig         0
-# Up             0
+# Plot dev logFC across logCPM (fdr < 0.05) Here, we're visualizing the difference in log-fold-change of gene expression between larvae from cold developmental conditions and warm developmental conds
+plotMD(int_QLFT)
 
-# Trying it a different way
-design_multi_inter_2 <- model.matrix(~0 + Dev + Mat:Dev) 
-
-multi_fit2 <- glmQLFit(DGEList, design_multi_inter_2)
-
-# Test for interaction between maternal temperature and larval temperature
-inter2 <- glmQLFTest(multi_fit2, coef = 3, poisson.bound = FALSE)
-x2 <- decideTestsDGE(inter2, adjust.method = "fdr", p.value = 0.05)
-summary(x2)
-#        DevC:MatW # wtf I don't understand why it only compares these two
-# Down          89
-# NotSig     16996
-# Up           139
-
-# anotha one
-design_multi_inter_3 <- model.matrix(~0 + Dev + Mat + Mat:Dev) 
-
-multi_fit3 <- glmQLFit(DGEList, design_multi_inter_3)
-
-# Test for interaction between maternal temperature and larval temperature
-inter3 <- glmQLFTest(multi_fit3, coef = 4, poisson.bound = FALSE)
-x3 <- decideTestsDGE(inter3, adjust.method = "fdr", p.value = 0.05)
-summary(x3)
-#      DevW:MatW #IDK WHY IT ONLY COMPARES THESE 2 BRUH
-# Down           0
-# NotSig     17224
-# Up             0
-
-# Trying things in DESeq2 b/c yolo
-
-DGEList2 <- DGEList(counts = data_input_gc, 
-                   group = targets_gc$grouping, 
-                  remove.zeros = T) #removed 5302 rows with all 0
-
-# Let's remove genes with less then 0.5 cpm (this is ~10 counts in the count file) in no fewer than 8 samples --> 75% of our samples. Could use 4 for our smallest group size and compare
-DGEList_keep2 <- rowSums(cpm(DGEList) > 0.5) >= 8
-table(DGEList_keep2)
-# FALSE  TRUE 
-# 10456 17224 
-
-# Filter and set keep.lib.sizes = F to have R recalculate library sizes after filtering
-DGEList2 <- DGEList[DGEList_keep2, 
-                   keep.lib.sizes = FALSE]
-
-# Full model
-dds2 <- DESeqDataSetFromMatrix(DGEList2,
-                              colData = targets_gc,
-                              design = formula( ~ 1 + Mat + Dev + Mat:Dev))
-
-rld <- rlog(dds2)
-rld.df <- assay(rld)
-
-# Wald test for interaction
-dds_int <- DESeq(dds2, minReplicatesForReplace = Inf)
-
-design <- design(dds_int)
-
-DESeq2_int_result_names <- resultsNames(dds_int)
-
-# Count DEGs due to interaction
-DESeq2_int_results <- results(dds_int, name = "MatW.DevW", lfcThreshold = 0, alpha = 0.05)
-
-summary(DESeq2_int_results)
-
-# out of 17224 with nonzero total read count
-# adjusted p-value < 0.05
-# LFC > 0 (up)       : 0, 0%
-# LFC < 0 (down)     : 0, 0%
-# outliers [1]       : 1, 0.0058%
-# low counts [2]     : 0, 0%
-# (mean count < 7)
-#yo what 
-
-# Gonna try limma ??? haven't finished this attempt yet
-Voom <- voom(DGEList, design_multi_inter_2, plot = T)
-
-# Fit using Voom, can block replicates
-lm_Voom_fit <- lmFit(Voom, design_multi_inter_2)
-
-# Create a contrast across continuous pCO2 variable 
-cont_dev <- contrasts.fit(lm_Voom_fit, coef = "Dev")
+# How many significant DEGs? 
+summary(decideTestsDGE(int_QLFT, 
+                         adjust.method = "fdr",
+                         p.value = 0.05))
+#       1*MatW_DevW
+# Down     0
+# NotSig  17224
+# Up       0
 
 ```
 
+# Structural equation models
 
-#Functional enrichment analyses
+First, wrangle normalized read counts and covariates into tabular format
 
-First, wrangle GO annotation data for tests
 ```{r}
- # need to find GO on echinobase
+
+# Create cpm df for regression against phenotypic data
+logCPM_df <- as.data.frame(DGEList_log)
+
+# Create tabularized df containing all replicates using 'melt'
+logCPM_df$geneid <- row.names(logCPM_df)
+
+tab_exp_df <- melt(logCPM_df,
+                   id = c("geneid"))
+
+# Create tabularized phenotypic df
+lipid_df <- read.csv("hotpurps_egg_lipid.csv")
+protein_df <- read.csv("hotpurps_egg_protein.csv")
+larv_morph_df <- read.csv("embryo_morphometrics.csv")
+
+# Calc mean lipid and protein by maternal treatment
+egg_df <- data.frame(
+  Mat = c("C", "W"),
+  lipid = c(mean(filter(lipid_df, Mat == "C")[,4]),
+            mean(filter(lipid_df, Mat == "W")[,4])),
+  prot = c(mean(filter(protein_df, Mat == "C")[,5]),
+           mean(filter(protein_df, Mat == "W")[,5]))
+)
+
+# Calc mean morphs per bucket grouped by stage
+hb_sum <- summarySE(measurevar = "area_mm2",
+                          groupvars = c("bucket"),
+                          data = filter(larv_morph_df, 
+                                        stage == "HB"))[,c(1,3)]
+
+eg_sum <- summarySE(measurevar = "area_mm2",
+                          groupvars = c("bucket"),
+                          data = filter(larv_morph_df, 
+                                        stage == "EG"))[,c(1,3)]
+
+pr_sum <- summarySE(measurevar = "area_mm2",
+                          groupvars = c("bucket"),
+                          data = filter(larv_morph_df, 
+                                        stage == "PR"))[,c(1,3)]
+
+# Merge egg data with GE df
+tab_exp_df$Mat <- substr(tab_exp_df$variable, 1, 1)
+tab_exp_df$Dev <- substr(tab_exp_df$variable, 2, 2)
+
+tab_morph_df <- merge(tab_exp_df,
+                      egg_df,
+                      by = "Mat")
+
+# Merge egg x GE df with larval morphs
+tab_prism_df <- merge(tab_morph_df,
+                      pr_sum,
+                      by.x = "variable", 
+                      by.y = "bucket")
+
+tab_hb_df <- merge(tab_morph_df,
+                      hb_sum,
+                      by.x = "variable", 
+                      by.y = "bucket")
+
+# Fit structural equation model: 
+# (i) dev -> (1-abnorm), GE and (ii)  dev -> (1-abnorm)
+
+# Fit prism SEM model A: time elapse = 
+lm1s <- dlply(tab_prism_df, c("geneid"), function(df) 
+lm(value ~ Mat + Dev, data = df))
+
+lm2s <- dlply(tab_prism_df, c("geneid"), function(df) 
+lm(area_mm2 ~ value + Mat, data = df))
+
+# Fit prism SEM model A: time elapse = 
+lm1s_hb <- dlply(tab_hb_df, c("geneid"), function(df) 
+lm(value ~ Mat + Dev, data = df))
+
+lm2s_hb <- dlply(tab_hb_df, c("geneid"), function(df) 
+lm(area_mm2 ~ value + Mat, data = df))
+
 ```
+
+## HB SEMs
+
+```{r}
+
+# Function to perform mediation analysis
+run_mediation_hb <- function(index) {
+  tryCatch({
+    summary(mediate(lm1s_hb[[index]], lm2s_hb[[index]], 
+                     boot = TRUE, sims = 10, 
+                     treat = "Mat", mediator = "value"))
+  }, error=function(e){paste("Error in index", index, ":", e$message)}) # Return the error message
+}
+
+# Determine the number of cores
+no_cores <- detectCores() - 1
+
+# Create a cluster
+cl <- makeCluster(no_cores)
+clusterEvalQ(cl, library(mediation))
+clusterExport(cl, varlist = c("lm1s_hb", "lm2s_hb", "run_mediation_hb"))
+
+# Run mediation in parallel
+mat_mediations_hb <- parLapply(cl, 1:length(lm1s), run_mediation_hb)
+
+# Stop the cluster
+stopCluster(cl)
+
+names(mat_mediations_hb) <- names(lm1s_hb)
+
+# Save and reload mediation
+save(mat_mediations_hb, file = "03082024_mat_mediations_hb.Rdata")
+
+```
+
+```{r}
+
+# Extract indirect effect estimates
+ind_est_hb <- list() 
+
+for (i in 1:length(mat_mediations_hb)) {
+  # Check if it's a list/data.frame and contains 'd0'
+  if ((is.list(mat_mediations_hb[[i]]) || is.data.frame(mat_mediations_hb[[i]])) && !is.null(mat_mediations_hb[[i]]$d0)) {
+    # Assuming 'd0' can be converted directly to a data.frame
+    temp_df <- mat_mediations_hb[[i]]$d0
+    
+    # Transpose and then store in 'ind_est_d'
+    ind_est_hb[[i]] <- temp_df
+  } else {
+    # Optionally, store NA or an empty data frame to keep consistent list lengths
+    ind_est_hb[[i]] <- NA  # Or, data.frame() for an empty data frame
+  }
+}
+
+names(ind_est_hb) <- names(mat_mediations_hb)
+
+ind_est_hb_df <- as.data.frame(t(bind_rows(ind_est_hb, .id = "column_label")))
+
+# Change geneids to transcript id's for go annotation
+ind_est_hb_df$column_label = rownames(ind_est_hb_df)
+
+ind_est_hb_df <- merge(ind_est_hb_df,
+                      data.frame(column_label = unique$gene,
+                                 transcript = unique$Name),
+                      by = "column_label",
+                      all.x = TRUE)
+
+# Export gomwu df of coefficients
+write.csv(data.frame(geneid = paste("rna-", ind_est_hb_df$transcript, sep = ""),
+                     coef = ind_est_hb_df[,2]),
+          file = "GO_MWU-master/mat_hb_ind_gomwu.csv",
+          row.names = FALSE) # Resave the csv inexcel before GOMWU run
+
+```
+
+
+## Prism SEMs
+
+```{r}
+
+library(parallel)
+library(profvis)
+
+# Function to perform mediation analysis
+run_mediation <- function(index) {
+  tryCatch({
+    summary(mediate(lm1s[[index]], lm2s[[index]], 
+                     boot = TRUE, sims = 10, 
+                     treat = "Mat", mediator = "value"))
+  }, error=function(e){paste("Error in index", index, ":", e$message)}) # Return the error message
+}
+
+# Determine the number of cores
+no_cores <- detectCores() - 1
+
+# Create a cluster
+cl <- makeCluster(no_cores)
+clusterEvalQ(cl, library(mediation))
+clusterExport(cl, varlist = c("lm1s", "lm2s", "run_mediation"))
+
+# Run mediation in parallel
+mat_mediations_b <- parLapply(cl, 1:length(lm1s), run_mediation)
+
+# Stop the cluster
+stopCluster(cl)
+
+names(mat_mediations_b) <- names(lm1s)
+
+# Save and reload mediation
+save(mat_mediations_b, file = "03082024_mat_mediations_b.Rdata")
+
+```
+
+```{r}
+
+load("03082024_mat_mediations.Rdata")
+
+# Extract p-values for indirect effects: E -> M -> GE
+ind_p_d <- list()
+
+for (i in 1:length(mat_mediations)) {
+  if (is.list(mat_mediations[[i]]) || is.data.frame(mat_mediations[[i]])) {
+    if (!is.null(mat_mediations[[i]]$d0.p)) {
+      ind_p_d[[i]] <- mat_mediations[[i]]$d0.p
+    } else {
+      ind_p_d[[i]] <- NA  # or some other placeholder to indicate missing data
+    }
+  } else {
+    ind_p_d[[i]] <- NA  # or some other placeholder
+  }
+}
+
+names(ind_p_d) <- names(mat_mediations)
+
+ind_p_d_df <- as.data.frame(t(bind_rows(ind_p_d, .id = "column_label")))
+
+# Extract indirect effect confidence intervals
+ind_ci_d <- list() 
+
+for (i in 1:length(mat_mediations)) {
+ ind_ci_d[[i]] <- data.frame(t(as.data.frame(mat_mediations[[i]]$d0.ci)))
+}
+names(ind_ci_d) <- names(mat_mediations)
+
+# Extract indirect effect estimates
+ind_est_d <- list() 
+
+for (i in 1:length(mat_mediations)) {
+  # Check if it's a list/data.frame and contains 'd0'
+  if ((is.list(mat_mediations[[i]]) || is.data.frame(mat_mediations[[i]])) && !is.null(mat_mediations[[i]]$d0)) {
+    # Assuming 'd0' can be converted directly to a data.frame
+    temp_df <- mat_mediations[[i]]$d0
+    
+    # Transpose and then store in 'ind_est_d'
+    ind_est_d[[i]] <- temp_df
+  } else {
+    # Optionally, store NA or an empty data frame to keep consistent list lengths
+    ind_est_d[[i]] <- NA  # Or, data.frame() for an empty data frame
+  }
+}
+
+names(ind_est_d) <- names(mat_mediations)
+
+ind_est_d_df <- as.data.frame(t(bind_rows(ind_est_d, .id = "column_label")))
+
+names(ind_p_vd) <- names(mat_mediations)
+
+for (i in 1:length(ind_p_d)) {
+ new_value_d <- as.numeric(ind_p_d[[i]])
+}
+
+ind_ci_d_df <- bind_rows(ind_ci_d, .id = "column_label")
+
+# Create df with geneid and indirect effect pvals
+ind_p_dfd <- as.data.frame(t(data.frame(ind_p_vd)))
+
+ind_p_dfd$fdr <- p.adjust(ind_p_dfd$V1, method = "fdr")
+
+nrow(filter(ind_p_dfd, fdr < 0.05)) # 2332; 14% of all genes gave mediated fitness effect)
+nrow(filter(ind_p_dfd, fdr < 0.05)) / nrow(ind_p_dfd)
+
+# Filter to include only transcripts with significant mediation parameter estimate
+sig_mat_meth_dfd <- filter(ind_ci_d_df, X2.5. > 0 & X97.5. > 0 | X2.5. < 0 & X97.5. < 0) # 66 mat indirect genes
+nrow(sig_mat_meth_dfd) # 2671
+
+# 15.9% of genes has mediated fitness effect
+nrow(sig_mat_meth_dfd) / nrow(ind_p_dfd)
+
+# How many mediation effects are positive vs. negative
+nrow(filter(sig_mat_meth_dfd, X2.5. > 0)) #845 are positive
+
+```
+
+```{r}
+## Export results for functional enrichment analysis
+
+library(rtracklayer)
+
+spour5.0_gff <- as.data.frame(import("genome_resources/sp5_0_GCF.gff3"))
+
+spour5.0_RNAs <- filter(spour5.0_gff, type == "mRNA")
+unique <- spour5.0_RNAs[!duplicated(spour5.0_RNAs$gene), ]
+
+ind_est_d_df$column_label = rownames(ind_est_d_df)
+
+ind_est_d_df <- merge(ind_est_d_df,
+                      data.frame(column_label = unique$gene,
+                                 transcript = unique$Name),
+                      by = "column_label",
+                      all.x = TRUE)
+
+# Export gomwu df of coefficients
+write.csv(data.frame(geneid = paste("rna-", ind_est_d_df$transcript, sep = ""),
+                     coef = ind_est_d_df[,2]),
+          file = "GO_MWU-master/mat_lipid_ind_gomwu.csv",
+          row.names = FALSE)
+
+```
+
+# Functional enrichment analyses
+
+```{r}
+
+# GO enrichments using Mann Whitney U tests
+setwd("~/Documents/GitHub/HotPurps_RNA/GO_MWU-master/")
+
+#Now we multiply them together into a new column
+
+## Ok we also want to bring in our annotations
+#I would suggest putting a GO_MWU folder into your working directory for these steps. There is some stuff to download such as the obo files 
+#See https://github.com/z0on/GO_MWU
+
+# GO_MWU uses continuous measure of significance (such as fold-change or -log(p-value) ) to identify GO categories that are significantly enriches with either up- or down-regulated genes. The advantage - no need to impose arbitrary significance cutoff.
+# If the measure is binary (0 or 1) the script will perform a typical "GO enrichment" analysis based Fisher's exact test: it will show GO categories over-represented among the genes that have 1 as their measure. 
+# On the plot, different fonts are used to indicate significance and color indicates enrichment with either up (red) or down (blue) regulated genes. No colors are shown for binary measure analysis.
+# The tree on the plot is hierarchical clustering of GO categories based on shared genes. Categories with no branch length between them are subsets of each other.
+# The fraction next to GO category name indicates the fracton of "good" genes in it; "good" genes being the ones exceeding the arbitrary absValue cutoff (option in gomwuPlot). For Fisher's based test, specify absValue=0.5. This value does not affect statistics and is used for plotting only.
+# Stretch the plot manually to match tree to text
+
+# Mikhail V. Matz, UT Austin, February 2015; matz@utexas.edu
+
+################################################################
+# First, press command-D on mac or ctrl-shift-H in Rstudio and navigate to the directory containing scripts and input files. Then edit, mark and execute the following bits of code, one after another.
+
+# Edit these to match your data file names: 
+input = "mat_hb_ind_gomwu.csv" # two columns of comma-separated values: gene id, continuous measure of significance. To perform standard GO enrichment analysis based on Fisher's exact test, use binary measure (0 or 1, i.e., either sgnificant or not).
+goAnnotations="goAnnot_spur5.0.tab" # two-column, tab-delimited, one line per gene, multiple GO terms separated by semicolon. If you have multiple lines per gene, use nrify_GOtable.pl prior to running this script.
+goDatabase="go.obo" # download from http://www.geneontology.org/GO.downloads.ontology.shtml
+goDivision="BP" # either MF, or BP, or CC
+source("gomwu.functions.R")
+
+# Calculating stats. It might take ~3 min for MF and BP. Do not rerun it if you just want to replot the data with different cutoffs, go straight to gomwuPlot. If you change any of the numeric values below, delete the files that were generated in previos runs first.
+gomwuStats(input, goDatabase, goAnnotations, goDivision,
+	perlPath="perl", # replace with full path to perl executable if it is not in your system's PATH already
+	largest=0.1, # a GO category will not be considered if it contains more than this fraction of the total number of genes
+	smallest=10,   # a GO category should contain at least this many genes to be considered
+	clusterCutHeight=0.25,
+	Alternative = "g") # threshold for merging similar (gene-sharing) terms. See README for details.
+	#Alternative="g") # # threshold for merging similar (gene-sharing) terms. See README for details.
+           #	Alternative="g" # by default the MWU test is two-tailed; specify "g" or "l" of you want to test for "greater" or "less" instead. 
+           #	Module=TRUE,Alternative="g" # un-remark this if you are analyzing a SIGNED WGCNA module (values: 0 for not in module genes, kME for in-module genes). In the call to gomwuPlot below, specify absValue=0.001 (count number of "good genes" that fall into the module)
+           #	Module=TRUE # un-remark this if you are analyzing an UNSIGNED WGCNA module
+# do not continue if the printout shows that no GO terms pass 10% FDR.
+
+quartz(quartz.options(width=5, height=3))
+results=gomwuPlot(input, goAnnotations, goDivision,
+#	absValue=-log(0.05,10),  # genes with the measure value exceeding this will be counted as "good genes". Specify absValue=0.001 if you are doing Fisher's exact test for standard GO enrichment or analyzing a WGCNA module (all non-zero genes = "good genes").
+	absValue=.001,
+	level1=0.05, # FDR threshold for plotting. Specify level1=1 to plot all GO categories containing genes exceeding the absValue.
+	level2=0.01, # FDR cutoff to print in regular (not italic) font.
+	level3=0.001, # FDR cutoff to print in large bold font.
+	txtsize=1,    # decrease to fit more on one page, or increase (after rescaling the plot so the tree fits the text) for better "word cloud" effect
+	treeHeight=1,# height of the hierarchical clustering tree
+  colors=c("salmon1","royalblue","lightcoral","skyblue") # these are default colors, un-remar and change if needed
+)
+
+# manually rescale the plot so the tree matches the text 
+# if there are too many categories displayed, try make it more stringent with level1=0.05,level2=0.01,level3=0.001.  
+
+results
+  
+```
+
+```
+
+### 03/082024 Results summary from SB
+
+Results:
+* ~2600 genes show a mediating effect of maternal treatment on prism body size, such that DE of the gene induced by maternal heat stress may drive increases in prism size. Of these,  ~800 were upregulated and ~1800 were downregulated.
+
+* A gene ontology mann whitney U test shows that there are GO terms enriched for downregulated genes that mediated a positive effect of maternal heat stress on prism body size. There was no functional enrichment among upregulated genes.
+
+* GO terms localized to the following cellular components: golgi apparatus, cytoskeleton, microtubule cytoskeleton, supramolecular complex, and supramolecular polymer.
+
+* Enriched molecular functions include: structural constituent of cytoskeleton, FMB binding, and oxidoreductase activity.
+
+* No biological process GO terms were enriched. Together, this suggests that the positive effect of maternal conditioning on prism size is related to downregulation of pathways responsible for antioxidation and building cytoskeletal macromolecules. Both reactive oxygen stress and cytoskeletal macromolecule synthesis are important components of golgi body function.
+
+* Interestingly, none of these pathways relate to protein or lipid metabolism, which was my a priori expectation. We can repeat the above analysis for hatched blastula and early gastrula areas and report those results alongside the prism effects. One possibility may be that protein provisioning of eggs (and maybe lipid provisioning) affect protein/lipid metabolism in embryos but this effect is washed out by the time you get to prism.
 
